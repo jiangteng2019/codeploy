@@ -1,1 +1,276 @@
-"use strict";var e=require("path"),o=require("fs"),r=require("archiver"),s=require("os"),n=require("ssh2");require("process");const c=o,t=r,l=e;function i(e){["host","port","username","localFolder","remoteFolder"].forEach((o=>{if(!(o in e))throw new Error(`${o} field required`)}));const o=["privateKey","password","passphrase"];if(!(o[0]in e)&&!(o[1]in e)&&!(o[2]in e))throw new Error("Please provide a log in credentials");return!0}var a={loadConfig:function(){const e=function(){const e=l.join(process.cwd(),"package.json"),o=l.join(process.cwd(),"codeploy.config.js");let r=null;try{let o=require(e).codeploy;if(o)return r=o,r}catch(e){console.error("Unable to load codeploy config",e)}try{return r=require(o),r}catch(e){console.error("Unable to load codeploy config",e)}return!1}();return"[object Object]"===Object.prototype.toString.call(e)&&i(e)?(e.localFolder=l.join(process.cwd(),e.localFolder),[e]):Array.isArray(e)?(e.forEach((e=>i(e))),e.map((e=>({...e,localFolder:l.join(process.cwd(),e.localFolder)})))):void 0},compressFiles:function(e){try{if(!e)throw new Error("The folder must be specified");if(!c.existsSync(e))throw new Error("The compressed folder does not exist");const o="app-dist-"+Date.now()+".zip",r=c.createWriteStream(o),s=t("zip",{zlib:{level:9}});return r.on("close",(function(){console.log(`Archive created: ${e} (${s.pointer()} total bytes)`)})),s.pipe(r),s.directory(e,!1),s.finalize(),o}catch(e){throw console.error(e),new Error(e)}},uploadFile:function(e,o,r){return new Promise(((s,n)=>{e.sftp(((e,c)=>{e&&n(e),c.fastPut(o,r,{},(e=>{e&&n(e),console.log("upload success"),s()}))}))}))},decompressServerFile:function(e,o,r){return new Promise(((s,n)=>{const c=`unzip -o ${o} -d ${r}`;e.exec(c,((e,o)=>{if(e)throw e;o.on("close",((e,o)=>{console.log(`Stream closed with code: ${e}, signal: ${o}`),0===e?(console.log("decompress success"),s()):n()})),o.on("data",(e=>{console.log("    STDOUT: "+e)})),o.stderr.on("data",(e=>{console.error("STDERR: "+e)}))}))}))},clearLocalFile:function(e){c.existsSync(e)?(c.rmSync(e),console.log("clean local file success")):console.log("File does not exist")},clearRemoteFile:function(e,o){return new Promise(((r,s)=>{const n=`rm -f ${o}`;e.exec(n,((o,n)=>{if(o)throw o;n.on("close",((o,n)=>{console.log(`Stream closed with code: ${o}, signal: ${n}`),0===o?(console.log("clean remote file success"),r()):s(),e.end()})),n.on("data",(e=>{console.log("STDOUT: "+e)})),n.stderr.on("data",(e=>{console.error("STDERR: "+e)}))}))}))}};const d=o,p=s,u=e,{Client:f}=n,h=p.homedir(),w=u.join(h,".ssh","id_rsa"),g=new f;var m={logInWithSSH:function(e){return new Promise(((o,r)=>{const{host:s,port:n,username:c,password:t,privateKey:l,passphrase:i}=e;g.connect({host:s,port:n||22,username:c||"root",password:t,privateKey:l||d.readFileSync(w),passphrase:i}),g.on("ready",(()=>{console.log("Client :: ready"),o(g)})),g.on("error",(e=>{console.error(`Connection error: ${e}`),r(e)}))}))}};const y=e,{loadConfig:F,compressFiles:S,uploadFile:$,decompressServerFile:v,clearLocalFile:j,clearRemoteFile:E}=a,{logInWithSSH:q}=m,b=F();async function x(e){try{const{localFolder:o,remoteFolder:r}=e,s=await q(e),n=S(o),c=y.join(process.cwd(),n),t=`${r}/${n}`;await $(s,c,t),await v(s,t,r),j(c),await E(s,t),console.log(`upload files to ${e.host} ${r} success`)}catch(e){console.log(e),console.log("Execution failed")}}!async function(){for(let e=0;e<b.length;e++)await x(b[e])}(),module.exports={};
+#!/usr/bin/env node
+
+'use strict';
+
+var require$$2 = require('path');
+var require$$0 = require('fs');
+var require$$1 = require('archiver');
+var require$$1$1 = require('os');
+var require$$3 = require('ssh2');
+require('process');
+
+var src = {};
+
+const fs$1 = require$$0;
+const archiver = require$$1;
+const path$2 = require$$2;
+
+// 压缩文件夹
+function compressFiles$1(folderPath) {
+    try {
+        if (!folderPath) throw new Error("The folder must be specified");
+        // 目录不存在
+        if (!fs$1.existsSync(folderPath)) throw new Error("The compressed folder does not exist");
+        // 文件名默认在脚本执行目录也就是项目根目录文件夹下
+        const compressedFileName = 'app-dist-' + Date.now() + '.zip';
+        // 创建写入流
+        const output = fs$1.createWriteStream(compressedFileName);
+        // 压缩对象
+        const archive = archiver('zip', {
+            // 设置压缩级别
+            zlib: { level: 9 }
+        });
+        output.on('close', function () {
+            console.log(`Archive created: ${folderPath} (${archive.pointer()} total bytes)`);
+        });
+        archive.pipe(output);
+        archive.directory(folderPath, false);
+        archive.finalize();
+        return compressedFileName;
+    } catch (error) {
+        console.error(error);
+        throw new Error(error);
+    }
+}
+
+// 解压远程文件夹
+function decompressServerFile$1(connection, remoteFilePath, remoteFolder) {
+    return new Promise((resolve, reject) => {
+        const command = `unzip -o ${remoteFilePath} -d ${remoteFolder}`;
+        connection.exec(command, (err, stream) => {
+            if (err) throw err;
+
+            stream.on('close', (code, signal) => {
+                console.log(`Stream closed with code: ${code}, signal: ${signal}`);
+                if (code === 0) {
+                    console.log("decompress success");
+                    resolve();
+                } else {
+                    reject();
+                }
+            });
+
+            stream.on('data', (data) => {
+                console.log('    STDOUT: ' + data);
+            });
+
+            stream.stderr.on('data', (data) => {
+                console.error('STDERR: ' + data);
+            });
+        });
+    })
+
+}
+
+// 上传文件
+// 必须指定为远端服务器的文件名，只写文件夹会报错
+function uploadFile$1(connection, localFilePath, remoteFilePath) {
+    return new Promise((resolve, reject) => {
+        connection.sftp((err, sftp) => {
+            if (err) reject(err);
+            sftp.fastPut(localFilePath, remoteFilePath, {}, (error) => {
+                if (error) reject(error);
+                console.log('upload success');
+                resolve();
+            });
+        });
+    })
+}
+
+// 读取配置文件
+function readConfig() {
+    const packageJsonPath = path$2.join(process.cwd(), 'package.json');
+    const codeployConfigPath = path$2.join(process.cwd(), 'codeploy.config.js');
+    let codeployConfig = null;
+
+    // 尝试从package.json读取配置
+    try {
+        let config = require(packageJsonPath)['codeploy'];
+        if (config) {
+            codeployConfig = config;
+            return codeployConfig;
+        }
+    } catch (error) {
+        console.error('Unable to load codeploy config', error);
+    }
+
+    // 尝试从codeploy.config.js读取配置
+    try {
+        codeployConfig = require(codeployConfigPath);
+        return codeployConfig;
+    } catch (error) {
+        console.error('Unable to load codeploy config', error);
+    }
+
+    return false;
+}
+
+function validateFields(configObj) {
+    const requiredFields = ["host", "port", "username", "localFolder", "remoteFolder"];
+    requiredFields.forEach(field => {
+        if (!(field in configObj)) {
+            throw new Error(`${field} field required`);
+        }
+    });
+    const o = ["privateKey", "password", "passphrase"];
+    if (!(o[0] in configObj) && !(o[1] in configObj) && !(o[2] in configObj)) {
+        throw new Error("Please provide a log in credentials")
+    }
+    return true;
+}
+
+function loadConfig$1() {
+    const config = readConfig();
+    if (Object.prototype.toString.call(config) === '[object Object]') {
+        if (validateFields(config)) {
+            // 将拼接成绝对路径
+            config.localFolder = path$2.join(process.cwd(), config.localFolder);
+            return [config];
+        }
+    }
+    if (Array.isArray(config)) {
+        // 校验不通过会抛出错误
+        config.forEach(item => validateFields(item));
+        return config.map(item => ({ ...item, localFolder: path$2.join(process.cwd(), item.localFolder) }))
+    }
+}
+
+// 清理本地压缩文件
+function clearLocalFile$1(localFilePath) {
+    if (fs$1.existsSync(localFilePath)) {
+        fs$1.rmSync(localFilePath);
+        console.log('clean local file success');
+    } else {
+        console.log("File does not exist");
+    }
+}
+
+// 清理远程压缩文件
+function clearRemoteFile$1(connection, remoteFilePath) {
+    return new Promise((resolve, reject) => {
+        const command = `rm -f ${remoteFilePath}`;
+        connection.exec(command, (err, stream) => {
+            if (err) throw err;
+
+            stream.on('close', (code, signal) => {
+                console.log(`Stream closed with code: ${code}, signal: ${signal}`);
+                if (code === 0) {
+                    console.log("clean remote file success");
+                    resolve();
+                } else {
+                    reject();
+                }
+                connection.end();
+            });
+            stream.on('data', (data) => {
+                console.log('STDOUT: ' + data);
+            });
+            stream.stderr.on('data', (data) => {
+                console.error('STDERR: ' + data);
+            });
+        });
+    })
+}
+
+
+
+var main = { loadConfig: loadConfig$1, compressFiles: compressFiles$1, uploadFile: uploadFile$1, decompressServerFile: decompressServerFile$1, clearLocalFile: clearLocalFile$1, clearRemoteFile: clearRemoteFile$1 };
+
+const fs = require$$0;
+const os = require$$1$1;
+const path$1 = require$$2;
+
+const { Client } = require$$3;
+
+// 获取用户主目录的路径
+const homeDirectory = os.homedir();
+
+// 构建 id_rsa 文件的完整路径
+const privateKeyPath = path$1.join(homeDirectory, '.ssh', 'id_rsa');
+
+// ssh2客户端
+const conn = new Client();
+
+function logInWithSSH$1(codeployConfig) {
+    return new Promise((resolve, reject) => {
+        const { host, port, username, password, privateKey, passphrase } = codeployConfig;
+
+        conn.connect({
+            host: host,
+            port: port || 22,
+            username: username || 'root',
+            password: password,
+            privateKey: privateKey || fs.readFileSync(privateKeyPath),
+            passphrase: passphrase
+        });
+
+        conn.on('ready', () => {
+            console.log('Client :: ready');
+            resolve(conn);
+        });
+
+        conn.on('error', (err) => {
+            console.error(`Connection error: ${err}`);
+            reject(err);
+        });
+    });
+
+}
+
+var ssh2 = { logInWithSSH: logInWithSSH$1 };
+
+const path = require$$2;
+const { loadConfig, compressFiles, uploadFile, decompressServerFile, clearLocalFile, clearRemoteFile } = main;
+const { logInWithSSH } = ssh2;
+
+const codeployConfig = loadConfig();
+
+
+async function work(codeployConfig) {
+    try {
+        // 获取远端服务器配置
+        const { localFolder, remoteFolder } = codeployConfig;
+        // ssh连接
+        const connection = await logInWithSSH(codeployConfig);
+        // 压缩文件夹获取文件名
+        const fileName = compressFiles(localFolder);
+        // 本地压缩包路径
+        const localFilePath = path.join(process.cwd(), fileName);
+        // 远程服务器路径
+        const remoteFilePath = `${remoteFolder}/${fileName}`;
+        // 上传压缩文件
+        await uploadFile(connection, localFilePath, remoteFilePath);
+        // 解压服务器文件
+        await decompressServerFile(connection, remoteFilePath, remoteFolder);
+        // 清理本地压缩文件
+        clearLocalFile(localFilePath);
+        // 清理远程压缩文件
+        await clearRemoteFile(connection, remoteFilePath);
+        // log
+        console.log(`upload files to ${codeployConfig.host} ${remoteFolder} success`);
+
+    } catch (error) {
+        console.log(error);
+        console.log("Execution failed");
+    }
+}
+
+async function start() {
+    for (let i = 0; i < codeployConfig.length; i++) {
+        await work(codeployConfig[i]);
+    }
+}
+
+start();
+
+module.exports = src;

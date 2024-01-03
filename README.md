@@ -2,6 +2,9 @@
 
 Quickly deploy application to the server
 
+[中文](https://github.com/jiangteng2019/codeploy/blob/master/README.zh.md) |
+[English](https://github.com/jiangteng2019/codeploy/blob/master/README.md)
+
 ## description
 
 codeploy Use ssh2 to quickly deploy the front-end packaged files to the server. In order to work correctly, you need to configure the login information for the server.
@@ -45,18 +48,14 @@ It is not recommended that you configure password fields, but if you do, make su
 Login with a secret key is recommended. The privateKey field should be the file path of your private key. if privateKey field not specified, it will read the privateKey from .ssh/id_rsa under user directory.
 
 ## run
-```
-codeploy
-```
-
-Or you can configure an npm script
+ configure an npm script for easy to use
 
     "scripts": {
         "codeploy": "codeploy"
     }
 
 ```shell
-# now you can run 
+# now you can run
 npm run codeploy
 ```
 
