@@ -1,11 +1,14 @@
 {
   "name": "codeploy",
   "version": "0.0.1",
-  "description": "Quickly deploy your application to the server",
+  "description": "Quickly deploy application to the server",
   "main": "index.js",
   "scripts": {
     "test": "node ./src/index.js",
     "build": "rollup --config"
+  },
+  "bin": {
+    "codeploy": "bin/bundle.js"
   },
   "keywords": [
     "code",
@@ -16,6 +19,13 @@
   "dependencies": {
     "archiver": "^6.0.1",
     "ssh2": "^1.15.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiangteng2019/codeploy.git"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
   },
   "type": "commonjs",
   "devDependencies": {

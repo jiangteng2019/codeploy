@@ -1,8 +1,10 @@
 # codeploy
 
+Quickly deploy application to the server
+
 ## description
 
-codeploy Use ssh 2 to quickly deploy the front-end packaged files to the server. In order to work correctly, you need to configure the login information for the server.
+codeploy Use ssh2 to quickly deploy the front-end packaged files to the server. In order to work correctly, you need to configure the login information for the server.
 
 ## install
 
@@ -50,12 +52,12 @@ codeploy
 Or you can configure an npm script
 
     "scripts": {
-        "deploy": "codeploy"
+        "codeploy": "codeploy"
     }
 
 ```shell
 # now you can run 
-npm run deploy
+npm run codeploy
 ```
 
 
