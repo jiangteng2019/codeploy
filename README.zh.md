@@ -40,7 +40,11 @@ codeploy 从项目根目录下的 package.json 的 codeploy 字段或 codeploy.c
 不推荐配置密码字段，但如果你这样做，请至少将 codeploy.config.js 添加到 .gitignore 中。推荐使用密钥登录。privateKey 字段应为你的私钥文件路径。如果未指定 privateKey 字段，它将从用户目录下的 .ssh/id_rsa 读取私钥。
 
 ## 运行
-配置一个 npm 脚本以便使用
+运行脚本
+```
+npx codeploy
+```
+或配置一个 npm 脚本以便使用
 ```json
 "scripts": {
   "codeploy": "codeploy"

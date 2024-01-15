@@ -48,7 +48,12 @@ It is not recommended that you configure password fields, but if you do, make su
 Login with a secret key is recommended. The privateKey field should be the file path of your private key. if privateKey field not specified, it will read the privateKey from .ssh/id_rsa under user directory.
 
 ## run
- configure an npm script for easy to use
+
+Run the following script
+```
+npx codeploy
+```
+or configure an npm script for easy to use
 
     "scripts": {
         "codeploy": "codeploy"
